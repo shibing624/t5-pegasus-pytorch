@@ -3,7 +3,8 @@ import argparse
 import pytorch_lightning as pl
 from transformers import get_linear_schedule_with_warmup
 from utils import *
-from t5_copy import T5Copy
+# from bert4torch.trainer import create_optimizer
+from t5_copy import T5ForConditionalGeneration
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -46,14 +47,14 @@ class TaskLightModel(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.model = T5Copy.from_pretrained(args.model_path)
+        self.model = T5ForConditionalGeneration.from_pretrained(args.model_path)
 
     def forward(self, **inputs):
         return self.model(**inputs)
 
     def training_step(self, batch, batch_idx):
         logits = self(**batch).logits
-        loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
+        loss = ce_loss(logits, batch['labels'], batch['decoder_attention_mask'])
         return loss
 
     def predict_batch(self, batch):
@@ -63,7 +64,6 @@ class TaskLightModel(pl.LightningModule):
                                    input_ids=batch['input_ids'], attention_mask=batch['attention_mask'],
                                    use_cache=True,
                                    max_length=self.args.max_target_length,
-                                   src=batch['input_ids']
                                    )
         pred = pred[:, 1:].cpu().numpy()
         pred = tokenizer.batch_decode(pred, skip_special_tokens=True)

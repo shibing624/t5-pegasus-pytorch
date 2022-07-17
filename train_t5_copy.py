@@ -1,10 +1,13 @@
 import os
 import argparse
 import pytorch_lightning as pl
+import re
+import numpy as np
+from transformers import AdamW
 from transformers import get_linear_schedule_with_warmup
-from utils import *
-from bert4torch.trainer import create_optimizer
-from t5_copy import T5ForConditionalGeneration
+from utils import T5PegasusTokenizer, EncoderDecoderData, copy_loss, compute_rouge, compute_bleu
+
+from t5_copy import T5Copy
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -47,24 +50,26 @@ class TaskLightModel(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.model = T5ForConditionalGeneration.from_pretrained(args.model_path)
+        self.model = T5Copy.from_pretrained(args.model_path)
 
     def forward(self, **inputs):
         return self.model(**inputs)
 
     def training_step(self, batch, batch_idx):
         logits = self(**batch).logits
-        loss = ce_loss(logits, batch['labels'], batch['decoder_attention_mask'])
+        loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
         return loss
 
     def predict_batch(self, batch):
-        pred = self.model.generate(eos_token_id=tokenizer.sep_token_id,
-                                   decoder_start_token_id=tokenizer.cls_token_id,
-                                   num_beams=3,
-                                   input_ids=batch['input_ids'], attention_mask=batch['attention_mask'],
-                                   use_cache=True,
-                                   max_length=self.args.max_target_length,
-                                   )
+        pred = self.model.generate(
+            eos_token_id=tokenizer.sep_token_id,
+            decoder_start_token_id=tokenizer.cls_token_id,
+            num_beams=3,
+            input_ids=batch['input_ids'], attention_mask=batch['attention_mask'],
+            use_cache=True,
+            max_length=self.args.max_target_length,
+            src=batch['input_ids']
+        )
         pred = pred[:, 1:].cpu().numpy()
         pred = tokenizer.batch_decode(pred, skip_special_tokens=True)
         pred = [s.replace(' ', '') for s in pred]
@@ -165,21 +170,17 @@ if __name__ == '__main__':
 
     dataloaders = data.get_dataloader()
 
-    for fold in range(args.kfold):
-        pl.seed_everything(args.seed + fold)
-        train_data, dev_data = dataloaders['train'][fold], dataloaders['dev'][fold]
-        model = TaskLightModel(args)
-        checkpoint = pl.callbacks.ModelCheckpoint(
-            dirpath=args.save_path,
-            filename='t5_copy-noise={}-{}-'.format(args.noise_prob,
-                                                   fold) + "{epoch:02d}-{bleu:.4f}-{rouge-1:.4f}-{rouge-2:.4f}-{rouge-l:.4f}",
-            save_weights_only=True,
-            save_on_train_epoch_end=True,
-            monitor='bleu',
-            mode='max',
-        )
-        trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint], logger=False)
-        trainer.fit(model, train_data, dev_data)
-        del model
-        del trainer
-        torch.cuda.empty_cache()
+    pl.seed_everything(args.seed)
+    train_data, dev_data = dataloaders['train'][0], dataloaders['dev'][0]
+    model = TaskLightModel(args)
+    checkpoint = pl.callbacks.ModelCheckpoint(
+        dirpath=args.save_path,
+        filename='t5_copy-noise={}-{}-'.format(
+            args.noise_prob, 0) + "{epoch:02d}-{bleu:.4f}-{rouge-1:.4f}-{rouge-2:.4f}-{rouge-l:.4f}",
+        save_weights_only=True,
+        save_on_train_epoch_end=True,
+        monitor='bleu',
+        mode='max',
+    )
+    trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint], logger=False)
+    trainer.fit(model, train_data, dev_data)

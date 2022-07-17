@@ -1,4 +1,4 @@
-from transformers.models.t5 import T5ForConditionalGeneration
+from transformers import T5ForConditionalGeneration
 import copy
 import torch
 import torch.nn as nn
@@ -61,14 +61,23 @@ class T5Copy(T5ForConditionalGeneration):
             encoder_outputs=None,
             **kwargs
     ):
-        res = super().prepare_inputs_for_generation(input_ids,
-                                                    past,
-                                                    attention_mask,
-                                                    head_mask,
-                                                    decoder_head_mask,
-                                                    cross_attn_head_mask,
-                                                    use_cache,
-                                                    encoder_outputs,
+        # res = super().prepare_inputs_for_generation(input_ids,
+        #                                             past,
+        #                                             attention_mask,
+        #                                             head_mask,
+        #                                             decoder_head_mask,
+        #                                             cross_attn_head_mask,
+        #                                             use_cache,
+        #                                             encoder_outputs,
+        #                                             **kwargs)
+        res = super().prepare_inputs_for_generation(input_ids=input_ids,
+                                                    past=past,
+                                                    attention_mask=attention_mask,
+                                                    head_mask=head_mask,
+                                                    decoder_head_mask=decoder_head_mask,
+                                                    cross_attn_head_mask=cross_attn_head_mask,
+                                                    use_cache=use_cache,
+                                                    encoder_outputs=encoder_outputs,
                                                     **kwargs)
         res['src'] = kwargs['src']
         return res
@@ -93,19 +102,32 @@ class T5Copy(T5ForConditionalGeneration):
             return_dict=None,
             src=None
     ):
-        outputs = super().forward(input_ids,
-                                  attention_mask,
-                                  decoder_input_ids,
-                                  decoder_attention_mask,
-                                  head_mask,
-                                  decoder_head_mask,
-                                  cross_attn_head_mask,
-                                  encoder_outputs,
-                                  past_key_values,
-                                  inputs_embeds,
-                                  decoder_inputs_embeds,
-                                  labels,
-                                  use_cache,
+        # outputs = super().forward(input_ids,
+        #                           attention_mask,
+        #                           decoder_input_ids,
+        #                           decoder_attention_mask,
+        #                           head_mask,
+        #                           decoder_head_mask,
+        #                           cross_attn_head_mask,
+        #                           encoder_outputs,
+        #                           past_key_values,
+        #                           inputs_embeds,
+        #                           decoder_inputs_embeds,
+        #                           labels,
+        #                           use_cache,
+        #                           output_attentions=True,
+        #                           output_hidden_states=True,
+        #                           return_dict=True)
+        outputs = super().forward(input_ids=input_ids,
+                                  attention_mask=attention_mask,
+                                  decoder_input_ids=decoder_input_ids,
+                                  decoder_attention_mask=decoder_attention_mask,
+                                  encoder_outputs=encoder_outputs,
+                                  past_key_values=past_key_values,
+                                  inputs_embeds=inputs_embeds,
+                                  decoder_inputs_embeds=decoder_inputs_embeds,
+                                  labels=labels,
+                                  use_cache=use_cache,
                                   output_attentions=True,
                                   output_hidden_states=True,
                                   return_dict=True)

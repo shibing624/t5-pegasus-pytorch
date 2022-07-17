@@ -28,10 +28,10 @@ pytorch-lightning<=1.4.9
 pytorch1.7.0 + transformers4.3.3
 
 ```python
-from tokenizer import T5PegasusTokenizer
+from utils import T5PegasusTokenizer
 from transformers.models.mt5.modeling_mt5 import MT5ForConditionalGeneration
 
-model_path = './'
+model_path = 'imxly/t5-pegasus'
 model = MT5ForConditionalGeneration.from_pretrained(model_path)
 tokenizer = T5PegasusTokenizer.from_pretrained(model_path)
 text = '蓝蓝的天上有一朵白白的云'

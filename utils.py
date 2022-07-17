@@ -70,7 +70,8 @@ class EncoderDecoderData:
 
     def predict_collate(self, batch):
         source = [x['src'] for x in batch]
-        ids = [x['id'] for x in batch]
+        # ids = [x['id'] for x in batch]
+        ids = [i for i, x in enumerate(batch)]
         res = self.tokenizer(source,
                              padding=True,
                              return_tensors='pt',
@@ -182,11 +183,11 @@ def compute_rouge(label, pred, weights=None, mode='weighted'):
     elif mode == '1':
         return {'rouge-1': scores[0]}
     elif mode == '2':
-        return {'rouge-2':scores[1]}
+        return {'rouge-2': scores[1]}
     elif mode == 'l':
         return {'rouge-l': scores[2]}
     elif mode == 'all':
-        return {'rouge-1': scores[0], 'rouge-2':scores[1], 'rouge-l': scores[2]}
+        return {'rouge-1': scores[0], 'rouge-2': scores[1], 'rouge-l': scores[2]}
 
 
 def mask_select(inputs, mask):
@@ -210,6 +211,7 @@ def copy_loss(inputs, targets, mask, eps=1e-6):
     loss = F.nll_loss(log_preds, targets)
     return loss
 
+
 def ce_loss(inputs, targets, mask):
     mask = mask[:, 1:]
     inputs = inputs[:, :-1]
@@ -218,6 +220,7 @@ def ce_loss(inputs, targets, mask):
     targets = mask_select(targets, mask)
     loss = F.cross_entropy(inputs, targets)
     return loss
+
 
 def create_optimizer(model, lr, weight_decay, custom_lr=None):
     no_decay = 'bias|norm'
