@@ -40,7 +40,7 @@ class TaskLightModel(pl.LightningModule):
     def on_predict_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
         with open(args.output_path, 'a+', encoding='utf-8') as f:
             for id_, p in zip(*outputs):
-                f.write(str(int(id_)) + '\t' + p + '\n')
+                f.write(str(id_) + '\t' + p + '\n')
 
 
 if __name__ == '__main__':

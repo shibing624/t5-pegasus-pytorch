@@ -16,5 +16,5 @@ python predict_t5_copy.py \
 --max_target_length 200 \
 --model_path imxly/t5-copy \
 --gpus 1 \
---resume saved/t5_copy-noise=0.0-0-epoch=04-bleu=0.0085-rouge-1=0.2353-rouge-2=0.0893-rouge-l=0.1875.ckpt \
+--resume saved/t5_copy-noise=0.0-0-epoch=04-bleu=0.0311-rouge-1=0.3040-rouge-2=0.1163-rouge-l=0.2619.ckpt \
 --output_path qg_predictions.txt

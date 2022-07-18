@@ -15,6 +15,10 @@ import collections
 rouge = rouge.Rouge()
 smooth = SmoothingFunction().method1
 
+SRC_TOKEN = 'original_text'
+TGT_TOKEN = 'correct_text'
+ID_TOKEN = 'id'
+
 
 class EncoderDecoderData:
     def __init__(self, args, tokenizer, ):
@@ -31,11 +35,16 @@ class EncoderDecoderData:
         return predict_dataloader
 
     def read_file(self, file):
-        return [json.loads(x) for x in open(file, encoding='utf-8')]
+        try:
+            r = [json.loads(x) for x in open(file, encoding='utf-8')]
+        except json.decoder.JSONDecodeError as e:
+            r = json.load(open(file, 'r', encoding='utf-8'))
+            print(r[:3], 'size:', len(r))
+        return r
 
     def train_collate(self, batch):
-        source = [x['src'] for x in batch]
-        target = [x['tgt'] for x in batch]
+        source = [x[SRC_TOKEN] for x in batch]
+        target = [x[TGT_TOKEN] for x in batch]
         res = self.tokenizer(source,
                              padding=True,
                              return_tensors='pt',
@@ -69,9 +78,15 @@ class EncoderDecoderData:
         return self.train_collate(batch)
 
     def predict_collate(self, batch):
-        source = [x['src'] for x in batch]
-        # ids = [x['id'] for x in batch]
-        ids = [i for i, x in enumerate(batch)]
+        source = [x[SRC_TOKEN] for x in batch]
+        ids = []
+        for i,x in enumerate(batch):
+            r = x.get(ID_TOKEN, i)
+            try:
+                r = int(r)
+            except:
+                r = i
+            ids.append(r)
         res = self.tokenizer(source,
                              padding=True,
                              return_tensors='pt',
@@ -79,7 +94,7 @@ class EncoderDecoderData:
                              return_attention_mask=True,
                              return_token_type_ids=False,
                              truncation='longest_first')
-        res['id'] = torch.tensor(list(map(int, ids)))
+        res[ID_TOKEN] = torch.tensor(list(map(int, ids)))
         return res
 
     def get_dataloader(self):

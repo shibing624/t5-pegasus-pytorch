@@ -13,8 +13,8 @@
 
 
 python train_t5_copy.py --train_file data/dev.json --dev_file data/sample_data.json \
---batch_size 16 \
---max_epochs 15 \
+--batch_size 32 \
+--max_epochs 5 \
 --max_source_length 500 \
 --max_target_length 200 \
 --model_path imxly/t5-copy \
