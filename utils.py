@@ -15,8 +15,8 @@ import collections
 rouge = rouge.Rouge()
 smooth = SmoothingFunction().method1
 
-SRC_TOKEN = 'original_text'
-TGT_TOKEN = 'correct_text'
+SRC_TOKEN = 'src'
+TGT_TOKEN = 'tgt'
 ID_TOKEN = 'id'
 
 
@@ -80,7 +80,7 @@ class EncoderDecoderData:
     def predict_collate(self, batch):
         source = [x[SRC_TOKEN] for x in batch]
         ids = []
-        for i,x in enumerate(batch):
+        for i, x in enumerate(batch):
             r = x.get(ID_TOKEN, i)
             try:
                 r = int(r)
