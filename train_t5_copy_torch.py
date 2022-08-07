@@ -15,6 +15,7 @@ from utils import T5PegasusTokenizer, EncoderDecoderData, copy_loss, compute_rou
 from t5_copy import T5Copy
 from loguru import logger
 import torch
+from tqdm import tqdm
 
 
 def create_optimizer(model, lr, weight_decay, custom_lr=None):
@@ -170,7 +171,6 @@ class CopyT5Model():
             global_step: Number of global steps trained
             training_details: Average training loss if evaluate_during_training is False or full training progress scores if evaluate_during_training is True
         """  # noqa: ignore flake8"
-        args = self.args
         os.makedirs(self.args.output_dir, exist_ok=True)
         data = EncoderDecoderData(self.args, self.tokenizer)
         dataloaders = data.get_dataloader()
@@ -178,17 +178,17 @@ class CopyT5Model():
         self.train_dataset = train_dataset
         optimizer, scheduler = self.configure_optimizers()
         training_details = []
-        for epoch in range(0, self.args.max_epochs):
+        for epoch in tqdm(range(0, self.args.max_epochs)):
             self.current_epoch = epoch
             self.model.train()
-            for batch_idx, batch in enumerate(train_dataset):
+            for batch_idx, batch in tqdm(enumerate(train_dataset)):
                 optimizer.zero_grad()
                 logits = self.model(**batch).logits
                 loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
-                logger.debug(f"train loss: {loss.item()}")
+                logger.debug(f"Epoch: {epoch}, step: {batch_idx}, train loss: {loss.item():.4f}")
                 training_details.append(loss.item())
             self.model.eval()
             test_loss = 0
@@ -198,7 +198,7 @@ class CopyT5Model():
                     loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
                     test_loss += loss.item()
             test_loss /= len(dev_dataset)
-            logger.debug(f"dev loss: {test_loss}")
+            logger.debug(f"Epoch: {epoch}, dev loss: {test_loss}")
             training_details.append(test_loss)
             # Save model checkpoint
             output_dir = self.args.output_dir if output_dir is None else output_dir
@@ -236,6 +236,7 @@ class CopyT5Model():
                 pred = self.predict_batch(batch)
                 preds.append(pred)
         return preds
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
