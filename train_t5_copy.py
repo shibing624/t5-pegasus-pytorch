@@ -2,26 +2,15 @@ import os
 import argparse
 import pytorch_lightning as pl
 import re
-import torch
 import numpy as np
-<<<<<<< HEAD
 from loguru import logger
-from transformers import AdamW, AutoTokenizer
-=======
+from transformers import AdamW, T5Tokenizer
 from collections import defaultdict
-from transformers import AdamW
->>>>>>> 24e0b0cd57ed1fdfceced0a4965b3c6b7802b6e3
 from transformers import get_linear_schedule_with_warmup
 from utils import T5PegasusTokenizer, EncoderDecoderData, copy_loss, compute_rouge, compute_bleu
 from t5_copy import T5Copy
-<<<<<<< HEAD
-import warnings
 os.environ["TOKENIZERS_PARALLELISM"] = "FALSE"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-warnings.filterwarnings('ignore')
-=======
->>>>>>> 24e0b0cd57ed1fdfceced0a4965b3c6b7802b6e3
 
 
 def create_optimizer(model, lr, weight_decay, custom_lr=None):
@@ -178,7 +167,7 @@ if __name__ == '__main__':
     if not os.path.exists(args.save_path):
         os.mkdir(args.save_path)
     if 'mengzi' in args.model_path:
-        tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+        tokenizer = T5Tokenizer.from_pretrained(args.model_path)
     else:
         tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
     # add custom word

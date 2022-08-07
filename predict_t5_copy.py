@@ -4,17 +4,11 @@
 @description:
 """
 import argparse
-from transformers import AutoTokenizer
+from transformers import T5Tokenizer
 import pytorch_lightning as pl
 from utils import T5PegasusTokenizer, EncoderDecoderData
 from t5_copy import T5Copy
-<<<<<<< HEAD
-import warnings
 from loguru import logger
-
-warnings.filterwarnings('ignore')
-=======
->>>>>>> 24e0b0cd57ed1fdfceced0a4965b3c6b7802b6e3
 
 
 class TaskLightModel(pl.LightningModule):
@@ -88,7 +82,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     if 'mengzi' in args.model_path:
-        tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+        tokenizer = T5Tokenizer.from_pretrained(args.model_path)
     else:
         tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
     
@@ -96,12 +90,7 @@ if __name__ == '__main__':
     dataloader = data.get_predict_dataloader()
     trainer = pl.Trainer.from_argparse_args(args, logger=False)
     model = TaskLightModel.load_from_checkpoint(args.resume, args=args)
-<<<<<<< HEAD
     logger.info(f'loaded model:{model}')
-=======
->>>>>>> 24e0b0cd57ed1fdfceced0a4965b3c6b7802b6e3
-    trainer.predict(model, dataloader)
-    
     # import os
     # model_dir = 't5-cor-v2'
     # os.makedirs(model_dir, exist_ok=True)

@@ -2,7 +2,6 @@ from transformers import BertTokenizer
 from functools import partial
 import json
 import jieba
-
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -88,13 +87,6 @@ class EncoderDecoderData:
             except:
                 r = i
             ids.append(r)
-        # res = self.tokenizer(source,
-        #                      padding=True,
-        #                      return_tensors='pt',
-        #                      max_length=self.args.max_source_length,
-        #                      return_attention_mask=True,
-        #                      return_token_type_ids=False,
-        #                      truncation='longest_first')
         res = self.tokenizer(source,
                              padding=True,
                              return_tensors='pt',
