@@ -226,7 +226,6 @@ class CopyT5Model():
             global_step: Number of global steps trained
             training_details: Average training loss if evaluate_during_training is False or full training progress scores if evaluate_during_training is True
         """  # noqa: ignore flake8"
-        os.makedirs(self.args.output_dir, exist_ok=True)
         data = EncoderDecoderData(self.args, self.tokenizer)
         dataloaders = data.get_dataloader()
         train_dataset, dev_dataset = dataloaders['train'][0], dataloaders['dev'][0]
