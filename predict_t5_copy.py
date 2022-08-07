@@ -4,10 +4,12 @@
 @description:
 """
 import argparse
+from transformers import AutoTokenizer
 import pytorch_lightning as pl
 from utils import T5PegasusTokenizer, EncoderDecoderData
 from t5_copy import T5Copy
 import warnings
+from loguru import logger
 
 warnings.filterwarnings('ignore')
 
@@ -16,7 +18,9 @@ class TaskLightModel(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
+        logger.info(args)
         self.model = T5Copy.from_pretrained(args.model_path)
+        logger.info(self.model)
 
     def predict_batch(self, batch):
         ids = batch.pop('id')
@@ -79,10 +83,20 @@ if __name__ == '__main__':
     parser.add_argument('--output_path', type=str)
 
     args = parser.parse_args()
-    tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
+    if 'mengzi' in args.model_path:
+        tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+    else:
+        tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
+    
     data = EncoderDecoderData(args, tokenizer)
     dataloader = data.get_predict_dataloader()
     trainer = pl.Trainer.from_argparse_args(args, logger=False)
     model = TaskLightModel.load_from_checkpoint(args.resume, args=args)
-
+    logger.info(f'loaded model:{model}')
     trainer.predict(model, dataloader)
+    
+    # import os
+    # model_dir = 't5-cor-v2'
+    # os.makedirs(model_dir, exist_ok=True)
+    # tokenizer.save_pretrained(model_dir)
+    # model.model.save_pretrained(model_dir)

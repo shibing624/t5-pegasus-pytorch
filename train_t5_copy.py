@@ -2,13 +2,17 @@ import os
 import argparse
 import pytorch_lightning as pl
 import re
+import torch
 import numpy as np
-from transformers import AdamW
+from loguru import logger
+from transformers import AdamW, AutoTokenizer
 from transformers import get_linear_schedule_with_warmup
 from utils import T5PegasusTokenizer, EncoderDecoderData, copy_loss, compute_rouge, compute_bleu
 
 from t5_copy import T5Copy
 import warnings
+os.environ["TOKENIZERS_PARALLELISM"] = "FALSE"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 warnings.filterwarnings('ignore')
 
@@ -51,6 +55,7 @@ class TaskLightModel(pl.LightningModule):
         super().__init__()
         self.args = args
         self.model = T5Copy.from_pretrained(args.model_path)
+        self.model.resize_token_embeddings(len(tokenizer))
 
     def forward(self, **inputs):
         return self.model(**inputs)
@@ -161,11 +166,18 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', type=str)
     parser.add_argument('--rouge_mode', type=str, default='all')
     parser.add_argument('--save_path', type=str, default='./saved')
+    parser.add_argument('--save_to_hf', action='store_true')
 
     args = parser.parse_args()
     if not os.path.exists(args.save_path):
         os.mkdir(args.save_path)
-    tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
+    if 'mengzi' in args.model_path:
+        tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+    else:
+        tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
+    # add custom word
+    tokenizer.add_tokens(['，', '（', '）'])
+    
     data = EncoderDecoderData(args, tokenizer)
 
     dataloaders = data.get_dataloader()
@@ -184,3 +196,18 @@ if __name__ == '__main__':
     )
     trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint], logger=False)
     trainer.fit(model, train_data, dev_data)
+    
+    logger.info('train model done.')
+    
+    if args.save_to_hf:
+        # 模型转为transformers可加载
+        ckpt_path = os.path.join(args.save_path, 'copyt5_correction')
+        os.makedirs(ckpt_path, exist_ok=True)
+        logger.info(f'ckpt_path: {ckpt_path}')
+        # model.load_state_dict(torch.load(ckpt_path)['state_dict'])
+        # 先保存原始transformer bert model
+        tokenizer.save_pretrained(ckpt_path)
+        model.model.save_pretrained(ckpt_path)
+        # state_dict = torch.load(ckpt_path)['state_dict']
+        # 再保存finetune训练后的模型文件，替换原始的pytorch_model.bin
+        # torch.save(state_dict, os.path.join(args.save_path, 'pytorch_model.bin'))
