@@ -17,7 +17,8 @@ class TaskLightModel(pl.LightningModule):
         self.args = args
         logger.info(args)
         self.model = T5Copy.from_pretrained(args.model_path)
-        logger.info(self.model)
+        self.model.resize_token_embeddings(len(tokenizer))
+        logger.info('model loaded.')
 
     def predict_batch(self, batch):
         ids = batch.pop('id')
@@ -85,12 +86,15 @@ if __name__ == '__main__':
         tokenizer = T5Tokenizer.from_pretrained(args.model_path)
     else:
         tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
+    # add custom word
+    tokenizer.add_tokens(['，', '（', '）', '_'])
     
     data = EncoderDecoderData(args, tokenizer)
     dataloader = data.get_predict_dataloader()
     trainer = pl.Trainer.from_argparse_args(args, logger=False)
     model = TaskLightModel.load_from_checkpoint(args.resume, args=args)
-    logger.info(f'loaded model:{model}')
+    logger.info(f'loaded model:{args.resume}')
+    trainer.predict(model, dataloader)
     # import os
     # model_dir = 't5-cor-v2'
     # os.makedirs(model_dir, exist_ok=True)

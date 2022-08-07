@@ -126,6 +126,35 @@ class TaskLightModel(pl.LightningModule):
         scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps,
                                                     num_training_steps=t_total)
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
+    
+    def predict_batch(self, batch):
+        # ids = batch.pop('id')
+        pred = self.model.generate(
+            eos_token_id=tokenizer.sep_token_id,
+            decoder_start_token_id=tokenizer.cls_token_id,
+            num_beams=3,
+            input_ids=batch['input_ids'], attention_mask=batch['attention_mask'],
+            use_cache=True,
+            max_length=self.args.max_target_length,
+            src=batch['input_ids']
+        )
+        pred = pred[:, 1:].cpu().numpy()
+        pred = tokenizer.batch_decode(pred, skip_special_tokens=True)
+        pred = [s.replace(' ', '') for s in pred]
+        return pred
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=None):
+        res = self.predict_batch(batch)
+        return res
+
+    def on_predict_batch_end(self, outputs, batch, batch_idx, dataloader_idx):
+        count = 0
+        with open(args.output_path, 'a+', encoding='utf-8') as f:
+            for id_, p in enumerate(zip(*outputs)):
+                f.write(str(id_) + '\t' + p + '\n')
+                count += 1
+                if count < 3:
+                    logger.debug(p)
 
 
 if __name__ == '__main__':
@@ -171,7 +200,7 @@ if __name__ == '__main__':
     else:
         tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
     # add custom word
-    tokenizer.add_tokens(['，', '（', '）'])
+    tokenizer.add_tokens(['，', '（', '）', '_'])
     
     data = EncoderDecoderData(args, tokenizer)
     dataloaders = data.get_dataloader()
@@ -189,9 +218,7 @@ if __name__ == '__main__':
     )
     trainer = pl.Trainer.from_argparse_args(args, callbacks=[checkpoint], logger=False)
     trainer.fit(model, train_data, dev_data)
-    
     logger.info('train model done.')
-    
     if args.save_to_hf:
         # 模型转为transformers可加载
         ckpt_path = os.path.join(args.save_path, 'copyt5_correction')

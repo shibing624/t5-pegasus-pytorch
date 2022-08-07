@@ -19,6 +19,9 @@ SRC_TOKEN = 'src'
 TGT_TOKEN = 'tgt'
 ID_TOKEN = 'id'
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.multiprocessing.set_start_method('spawn')
+
 
 class EncoderDecoderData:
     def __init__(self, args, tokenizer):
@@ -48,18 +51,18 @@ class EncoderDecoderData:
         res = self.tokenizer(source,
                              padding=True,
                              return_tensors='pt',
-                             max_length=512,
-                             truncation='longest_first',
+                             max_length=500,
+                             truncation=True,
                              return_attention_mask=True,
-                             return_token_type_ids=False)
+                             return_token_type_ids=False).to(device)
 
         target_features = self.tokenizer(target,
                                          padding=True,
                                          return_tensors='pt',
                                          max_length=150,
-                                         truncation='longest_first',
+                                         truncation=True,
                                          return_attention_mask=True,
-                                         return_token_type_ids=False)
+                                         return_token_type_ids=False).to(device)
         res['decoder_attention_mask'] = target_features['attention_mask']
         res['labels'] = target_features['input_ids']
         if self.args.noise_prob == 0.:
@@ -93,7 +96,7 @@ class EncoderDecoderData:
                              max_length=self.args.max_source_length,
                              return_attention_mask=True,
                              return_token_type_ids=False,
-                             truncation=True)
+                             truncation=True).to(device)
         res[ID_TOKEN] = torch.tensor(list(map(int, ids)))
         return res
 
@@ -109,10 +112,9 @@ class EncoderDecoderData:
                 train_dataloader = DataLoader(train_dataset,
                                               batch_size=self.args.batch_size,
                                               collate_fn=self.train_collate,
-                                              num_workers=self.args.num_works,
                                               shuffle=True)
                 dev_dataloader = DataLoader(dev_dataset,
-                                            batch_size=self.args.batch_size * 2,
+                                            batch_size=self.args.batch_size,
                                             collate_fn=self.dev_collate)
                 ret['train'].append(train_dataloader)
                 ret['dev'].append(dev_dataloader)
@@ -120,7 +122,7 @@ class EncoderDecoderData:
             if self.args.kfold == 1:
                 from sklearn.model_selection import train_test_split
                 train_idx, dev_idx = train_test_split(range(len(self.train_data)),
-                                                      test_size=0.2,
+                                                      test_size=0.1,
                                                       random_state=self.args.seed)
                 train_dataset = Subset(base_dataset, train_idx)
                 dev_dataset = Subset(base_dataset, dev_idx)
@@ -132,13 +134,12 @@ class EncoderDecoderData:
             train_dataloader = DataLoader(train_dataset,
                                           batch_size=self.args.batch_size,
                                           collate_fn=self.train_collate,
-                                          num_workers=self.args.num_works, shuffle=True)
+                                          shuffle=True)
             dev_dataloader = DataLoader(dev_dataset,
                                         batch_size=self.args.batch_size * 2,
                                         collate_fn=self.dev_collate)
             ret['train'].append(train_dataloader)
             ret['dev'].append(dev_dataloader)
-
         return ret
 
 

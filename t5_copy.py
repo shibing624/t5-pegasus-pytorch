@@ -110,6 +110,9 @@ class T5Copy(T5ForConditionalGeneration):
         if self.training:
             prob = self.generator(input_ids, decode_output, decode_attn, memory, gen_logits)
         else:
-            prob = self.generator(src, decode_output, decode_attn, memory, gen_logits)
+            if src is not None:
+                prob = self.generator(src, decode_output, decode_attn, memory, gen_logits)
+            else:
+                prob = self.generator(input_ids, decode_output, decode_attn, memory, gen_logits)
         outputs.logits = prob
         return outputs

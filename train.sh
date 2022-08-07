@@ -12,12 +12,15 @@
 #--lr 5e-5
 
 
-python train_t5_copy.py --train_file data/dev.json --dev_file data/sample_data.json \
+python train_t5_copy_torch.py --train_file data/dev.json --dev_file data/sample_data.json \
+--predict_file data/sample_data.json \
 --batch_size 32 \
---max_epochs 5 \
+--max_epochs 8 \
 --max_source_length 500 \
 --max_target_length 200 \
 --model_path imxly/t5-copy \
 --compute_bleu --compute_rouge \
 --gpus 1 \
---lr 5e-5
+--lr 5e-5 \
+--num_works 4 \
+--do_train --do_predict

@@ -1,0 +1,14 @@
+python train_t5_copy.py \
+--train_file data/dev.json \
+--dev_file data/sample_data.json \
+--predict_file data/sample_data.json \
+--batch_size 32 \
+--max_epochs 8 \
+--max_source_length 500 \
+--max_target_length 200 \
+--model_path imxly/t5-copy \
+--compute_bleu \
+--compute_rouge \
+--gpus 1 \
+--eval_start 0 \
+--lr 5e-5 --save_to_hf
