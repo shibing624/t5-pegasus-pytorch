@@ -4,21 +4,27 @@ import pytorch_lightning as pl
 import re
 import torch
 import numpy as np
+<<<<<<< HEAD
 from loguru import logger
 from transformers import AdamW, AutoTokenizer
+=======
+from collections import defaultdict
+from transformers import AdamW
+>>>>>>> 24e0b0cd57ed1fdfceced0a4965b3c6b7802b6e3
 from transformers import get_linear_schedule_with_warmup
 from utils import T5PegasusTokenizer, EncoderDecoderData, copy_loss, compute_rouge, compute_bleu
-
 from t5_copy import T5Copy
+<<<<<<< HEAD
 import warnings
 os.environ["TOKENIZERS_PARALLELISM"] = "FALSE"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 warnings.filterwarnings('ignore')
+=======
+>>>>>>> 24e0b0cd57ed1fdfceced0a4965b3c6b7802b6e3
 
 
 def create_optimizer(model, lr, weight_decay, custom_lr=None):
-    from collections import defaultdict
     no_decay = 'bias|norm'
     params = defaultdict(list)
     custom_lr = custom_lr or dict()
@@ -179,9 +185,7 @@ if __name__ == '__main__':
     tokenizer.add_tokens(['，', '（', '）'])
     
     data = EncoderDecoderData(args, tokenizer)
-
     dataloaders = data.get_dataloader()
-
     pl.seed_everything(args.seed)
     train_data, dev_data = dataloaders['train'][0], dataloaders['dev'][0]
     model = TaskLightModel(args)

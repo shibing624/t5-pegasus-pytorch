@@ -3,10 +3,6 @@ import copy
 import torch
 import torch.nn as nn
 
-__all__ = [
-    'T5Copy',
-]
-
 
 class CopyGenerator(nn.Module):
     def __init__(self, config):
@@ -61,15 +57,6 @@ class T5Copy(T5ForConditionalGeneration):
             encoder_outputs=None,
             **kwargs
     ):
-        # res = super().prepare_inputs_for_generation(input_ids,
-        #                                             past,
-        #                                             attention_mask,
-        #                                             head_mask,
-        #                                             decoder_head_mask,
-        #                                             cross_attn_head_mask,
-        #                                             use_cache,
-        #                                             encoder_outputs,
-        #                                             **kwargs)
         res = super().prepare_inputs_for_generation(input_ids=input_ids,
                                                     past=past,
                                                     attention_mask=attention_mask,
@@ -102,22 +89,6 @@ class T5Copy(T5ForConditionalGeneration):
             return_dict=None,
             src=None
     ):
-        # outputs = super().forward(input_ids,
-        #                           attention_mask,
-        #                           decoder_input_ids,
-        #                           decoder_attention_mask,
-        #                           head_mask,
-        #                           decoder_head_mask,
-        #                           cross_attn_head_mask,
-        #                           encoder_outputs,
-        #                           past_key_values,
-        #                           inputs_embeds,
-        #                           decoder_inputs_embeds,
-        #                           labels,
-        #                           use_cache,
-        #                           output_attentions=True,
-        #                           output_hidden_states=True,
-        #                           return_dict=True)
         outputs = super().forward(input_ids=input_ids,
                                   attention_mask=attention_mask,
                                   decoder_input_ids=decoder_input_ids,
@@ -142,11 +113,3 @@ class T5Copy(T5ForConditionalGeneration):
             prob = self.generator(src, decode_output, decode_attn, memory, gen_logits)
         outputs.logits = prob
         return outputs
-
-
-if __name__ == '__main__':
-    from transformers.models.t5 import T5Config
-
-    config = T5Config.from_json_file('config_small.json')
-    model = T5Copy(config)
-    model.generate(torch.LongTensor([[0, 1, 2, 3]]), src=torch.LongTensor([[0, 1, 2, 3]]))
