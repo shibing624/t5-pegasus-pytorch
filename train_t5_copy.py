@@ -3,18 +3,14 @@ import argparse
 import pytorch_lightning as pl
 import re
 import numpy as np
+from collections import defaultdict
 from transformers import AdamW
 from transformers import get_linear_schedule_with_warmup
 from utils import T5PegasusTokenizer, EncoderDecoderData, copy_loss, compute_rouge, compute_bleu
-
 from t5_copy import T5Copy
-import warnings
-
-warnings.filterwarnings('ignore')
 
 
 def create_optimizer(model, lr, weight_decay, custom_lr=None):
-    from collections import defaultdict
     no_decay = 'bias|norm'
     params = defaultdict(list)
     custom_lr = custom_lr or dict()
@@ -167,9 +163,7 @@ if __name__ == '__main__':
         os.mkdir(args.save_path)
     tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
     data = EncoderDecoderData(args, tokenizer)
-
     dataloaders = data.get_dataloader()
-
     pl.seed_everything(args.seed)
     train_data, dev_data = dataloaders['train'][0], dataloaders['dev'][0]
     model = TaskLightModel(args)

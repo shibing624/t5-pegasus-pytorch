@@ -7,9 +7,6 @@ import argparse
 import pytorch_lightning as pl
 from utils import T5PegasusTokenizer, EncoderDecoderData
 from t5_copy import T5Copy
-import warnings
-
-warnings.filterwarnings('ignore')
 
 
 class TaskLightModel(pl.LightningModule):
@@ -20,14 +17,15 @@ class TaskLightModel(pl.LightningModule):
 
     def predict_batch(self, batch):
         ids = batch.pop('id')
-        pred = self.model.generate(eos_token_id=tokenizer.sep_token_id,
-                                   decoder_start_token_id=tokenizer.cls_token_id,
-                                   num_beams=3,
-                                   input_ids=batch['input_ids'], attention_mask=batch['attention_mask'],
-                                   use_cache=True,
-                                   max_length=self.args.max_target_length,
-                                   src=batch['input_ids']
-                                   )
+        pred = self.model.generate(
+            eos_token_id=tokenizer.sep_token_id,
+            decoder_start_token_id=tokenizer.cls_token_id,
+            num_beams=3,
+            input_ids=batch['input_ids'], attention_mask=batch['attention_mask'],
+            use_cache=True,
+            max_length=self.args.max_target_length,
+            src=batch['input_ids']
+        )
         pred = pred[:, 1:].cpu().numpy()
         pred = tokenizer.batch_decode(pred, skip_special_tokens=True)
         pred = [s.replace(' ', '') for s in pred]
@@ -84,5 +82,4 @@ if __name__ == '__main__':
     dataloader = data.get_predict_dataloader()
     trainer = pl.Trainer.from_argparse_args(args, logger=False)
     model = TaskLightModel.load_from_checkpoint(args.resume, args=args)
-
     trainer.predict(model, dataloader)

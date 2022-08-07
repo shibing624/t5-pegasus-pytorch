@@ -21,7 +21,7 @@ ID_TOKEN = 'id'
 
 
 class EncoderDecoderData:
-    def __init__(self, args, tokenizer, ):
+    def __init__(self, args, tokenizer):
         self.train_data = self.read_file(args.train_file) if args.train_file else None
         self.dev_data = self.read_file(args.dev_file) if args.dev_file else None
         self.predict_data = self.read_file(args.predict_file) if args.predict_file else None
