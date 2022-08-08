@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 import rouge
 import re
+import sys
 from transformers import AdamW
 import collections
 
@@ -268,3 +269,12 @@ def create_optimizer(model, lr, weight_decay, custom_lr=None):
 
     optimizer = AdamW(optimizer_grouped_parameters, lr=lr)
     return optimizer
+
+
+if __name__ == '__main__':
+    infile = sys.argv[1]
+    outfile = sys.argv[2]
+    r = [json.loads(x) for x in open(infile, encoding='utf-8')]
+    with open(outfile, 'w', encoding='utf-8') as f:
+        for i in r:
+            f.write(i['src'] + '\t' + i['tgt'] + '\n')
