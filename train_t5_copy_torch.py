@@ -201,7 +201,12 @@ class CopyT5Model():
         for epoch in tqdm(range(0, self.args.max_epochs)):
             self.current_epoch = epoch
             self.model.train()
-            for batch_idx, batch in tqdm(enumerate(train_dataset)):
+            batch_iterator = tqdm(
+                train_dataset,
+                desc=f"Running Epoch {epoch} of {self.args.max_epochs}",
+                mininterval=0,
+            )
+            for batch_idx, batch in enumerate(batch_iterator):
                 optimizer.zero_grad()
                 # logger.debug(f'batch: {batch}, {batch["input_ids"].shape}')
                 logits = self.model(**batch).logits
@@ -209,8 +214,11 @@ class CopyT5Model():
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
-                logger.debug(f"Epoch: {epoch}/{self.args.max_epochs}, step: {batch_idx}/{t_steps}, train loss: {loss.item():.4f}")
                 training_details.append(loss.item())
+                batch_iterator.set_description(
+                    f"Epochs {epoch}/{self.args.max_epochs}. Running Loss: {loss.item():9.4f}"
+                )
+            logger.debug(f"Epoch: {epoch}/{self.args.max_epochs}, train loss: {loss.item():.4f}")
             self.model.eval()
             test_loss = 0
             with torch.no_grad():
@@ -219,7 +227,7 @@ class CopyT5Model():
                     loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
                     test_loss += loss.item()
             test_loss /= len(list(dev_dataset))
-            logger.debug(f"Epoch: {epoch}, dev loss: {test_loss}")
+            logger.debug(f"Epoch: {epoch}/{self.args.max_epochs}, dev loss: {test_loss}")
             training_details.append(test_loss)
             # Save model checkpoint
             output_dir = self.args.output_dir if output_dir is None else output_dir

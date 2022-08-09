@@ -190,6 +190,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', type=str)
     parser.add_argument('--rouge_mode', type=str, default='all')
     parser.add_argument('--save_path', type=str, default='./saved')
+    parser.add_argument('--save_hf_dir', type=str, default='./saved/copyt5_ads')
     parser.add_argument('--save_to_hf', action='store_true')
 
     args = parser.parse_args()
@@ -221,7 +222,7 @@ if __name__ == '__main__':
     logger.info('train model done.')
     if args.save_to_hf:
         # 模型转为transformers可加载
-        ckpt_path = os.path.join(args.save_path, 'copyt5_correction')
+        ckpt_path = args.save_hf_dir
         os.makedirs(ckpt_path, exist_ok=True)
         logger.info(f'ckpt_path: {ckpt_path}')
         # model.load_state_dict(torch.load(ckpt_path)['state_dict'])

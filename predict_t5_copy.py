@@ -4,6 +4,7 @@
 @description:
 """
 import argparse
+import os
 from transformers import T5Tokenizer
 import pytorch_lightning as pl
 from utils import T5PegasusTokenizer, EncoderDecoderData
@@ -82,6 +83,9 @@ if __name__ == '__main__':
     parser.add_argument('--output_path', type=str)
 
     args = parser.parse_args()
+    print(f'args: {args}')
+    if os.path.exists(args.output_path):
+        os.remove(args.output_path)
     if 'mengzi' in args.model_path:
         tokenizer = T5Tokenizer.from_pretrained(args.model_path)
     else:
