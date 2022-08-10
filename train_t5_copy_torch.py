@@ -57,46 +57,25 @@ class CopyT5Model():
         super().__init__()
         self.args = args
         self.tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
+        # add custom word
+        self.tokenizer.add_tokens(['，', '（', '）', '_'])
         self.model = T5Copy.from_pretrained(args.model_path)
+        self.model.resize_token_embeddings(len(self.tokenizer))
         self.model.to(device)
 
-    # def forward(self, **inputs):
-    #     return self.model(**inputs)
-
-    # def training_step(self, batch, batch_idx):
-    #     logits = self(**batch).logits
-    #     loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
-    #     return loss
-
     def predict_batch(self, batch):
-        # input_batch = self.tokenizer(
-        #     batch,
-        #     max_length=128,
-        #     padding="max_length",
-        #     return_tensors="pt",
-        #     truncation=True,
-        # ).to(device)
-        pred = self.model.model.generate(
-            inputs=batch['input_ids'],
-            max_length=128,
-            num_return_sequences=1,
+        pred = self.model.generate(
+            eos_token_id=self.tokenizer.sep_token_id,
+            decoder_start_token_id=self.tokenizer.cls_token_id,
+            num_beams=3,
+            input_ids=batch['input_ids'], attention_mask=batch['attention_mask'],
+            max_length=self.args.max_target_length,
+            src=batch['input_ids']
         )
-        
-        # pred = self.model.generate(
-        #     inputs=batch,
-        #     eos_token_id=self.tokenizer.sep_token_id,
-        #     decoder_start_token_id=self.tokenizer.cls_token_id,
-        #     num_beams=3,
-        #     input_ids=batch['input_ids'], 
-        #     attention_mask=batch['attention_mask'],
-        #     use_cache=True,
-        #     max_length=self.args.max_target_length,
-        #     # src=batch['input_ids']
-        # )
         pred = pred[:, 1:].cpu().numpy()
         pred = self.tokenizer.batch_decode(pred, skip_special_tokens=True)
         pred = [s.replace(' ', '') for s in pred]
-        logger.debug(f'pred: {pred}')
+        # logger.debug(f'inline pred: {pred}')
         return pred
 
     def validation_step(self, batch):
@@ -105,8 +84,6 @@ class CopyT5Model():
             ret['rouge'] = 0
         if self.args.compute_bleu:
             ret['bleu'] = 0
-        if self.current_epoch + 1 < self.args.eval_start:
-            return ret
         pred = self.predict_batch(batch)
         label = batch['decoder_input_ids'][:, 1:].cpu().numpy()
         label = self.tokenizer.batch_decode(label, skip_special_tokens=True)
@@ -117,23 +94,7 @@ class CopyT5Model():
         if self.args.compute_bleu:
             bleu = compute_bleu(label, pred)
             ret['bleu'] = bleu
-        logger.debug(f'val step: {ret}')
-        return ret
-
-    def validation_epoch_end(self, outputs):
-        ret = {}
-        if self.args.compute_rouge:
-            ret['rouge'] = 0
-        if self.args.compute_bleu:
-            ret['bleu'] = 0
-        if self.current_epoch + 1 < self.args.eval_start:
-            return ret
-        keys = outputs[0].keys()
-        ret = {k: np.mean([x[k] for x in outputs]) for k in keys}
-        for k, v in ret.items():
-            logger.debug(f'{k}={v}')
-        print(ret)
-        return ret
+        return ret, pred
 
     def configure_optimizers(self):
         optimizer = create_optimizer(self.model, self.args.lr, self.args.weight_decay)
@@ -189,7 +150,6 @@ class CopyT5Model():
             global_step: Number of global steps trained
             training_details: Average training loss if evaluate_during_training is False or full training progress scores if evaluate_during_training is True
         """
-        os.makedirs(self.args.output_dir, exist_ok=True)
         data = EncoderDecoderData(self.args, self.tokenizer)
         dataloaders = data.get_dataloader()
         train_dataset, dev_dataset = dataloaders['train'][0], dataloaders['dev'][0]
@@ -207,57 +167,90 @@ class CopyT5Model():
                 mininterval=0,
             )
             for batch_idx, batch in enumerate(batch_iterator):
-                optimizer.zero_grad()
                 # logger.debug(f'batch: {batch}, {batch["input_ids"].shape}')
                 logits = self.model(**batch).logits
                 loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
+                optimizer.zero_grad()
                 training_details.append(loss.item())
                 batch_iterator.set_description(
-                    f"Epochs {epoch}/{self.args.max_epochs}. Running Loss: {loss.item():9.4f}"
+                    f"Epochs {epoch}/{self.args.max_epochs}. Training Loss: {loss.item():.4f}"
                 )
             logger.debug(f"Epoch: {epoch}/{self.args.max_epochs}, train loss: {loss.item():.4f}")
             self.model.eval()
+            val_iterator = tqdm(
+                dev_dataset,
+                desc=f"Running Epoch {epoch} of {self.args.max_epochs}",
+                mininterval=0,
+            )
             test_loss = 0
+            val_evals = []
+            val_preds = []
+            val_labels = []
             with torch.no_grad():
-                for batch_idx, batch in enumerate(dev_dataset):
+                for batch_idx, batch in enumerate(val_iterator):
                     logits = self.model(**batch).logits
                     loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
                     test_loss += loss.item()
+                    val_ret, val_pred = self.validation_step(batch)
+                    val_evals.append(val_ret)
+                    val_preds.extend(val_pred)
+                    label = self.tokenizer.batch_decode(batch['labels'].cpu().numpy(), skip_special_tokens=True)
+                    label = [s.replace(' ', '') for s in label]
+                    val_labels.extend(label)
+                    val_iterator.set_description(
+                        f"Epochs {epoch}/{self.args.max_epochs}. Dev Loss: {loss.item():.4f}. Dev Eval: {val_ret}"
+                    )
             test_loss /= len(list(dev_dataset))
-            logger.debug(f"Epoch: {epoch}/{self.args.max_epochs}, dev loss: {test_loss}")
+            val_bleu = 0
+            for i in val_evals:
+                val_bleu += i.get('bleu', 0)
+            val_bleu /= len(val_evals)
+            num = 3
+            logger.debug(f"y_pred: {val_preds[-num:]}")
+            logger.debug(f"y_truth: {val_labels[-num:]}")
+            logger.debug(f"Epoch: {epoch}/{self.args.max_epochs}, average dev loss: {test_loss:.4f}, average dev blue: {val_bleu:.4f}")
             training_details.append(test_loss)
             # Save model checkpoint
             output_dir = self.args.output_dir if output_dir is None else output_dir
+            os.makedirs(self.args.output_dir, exist_ok=True)
             self.save_model(output_dir, self.model)
-
             # Predict model
             if data.predict_data:
-                pred_batch = data.predict_data[:3] 
+                pred_batch = data.predict_data[-3:] 
                 pred_source = [x[SRC_TOKEN] for x in pred_batch]
                 pred_target = [x[TGT_TOKEN] for x in pred_batch]
                 pred = predict(pred_source, output_dir)
+                logger.debug('\n\npredict:')
                 logger.debug(f'y_pred: {pred}')
                 logger.debug(f'y_truth:{pred_target}')
         return training_details
 
 def predict(texts, model_dir, batch_size=32, max_length=128, silent=True):
     tokenizer = T5PegasusTokenizer.from_pretrained(model_dir)
-    model = T5ForConditionalGeneration.from_pretrained(model_dir)
+    model = T5Copy.from_pretrained(model_dir)
     model.to(device)
+    logger.info('model loaded.')
     result = []
     for batch in tqdm([texts[i:i + batch_size] for i in range(0, len(texts), batch_size)],
                         desc="Generating outputs", disable=silent):
-        inputs = tokenizer(batch, padding=True, max_length=max_length, truncation=True,
-                                return_tensors='pt').to(device)
+        inputs = tokenizer(batch, padding=True, max_length=max_length, truncation=True, return_tensors='pt').to(device)
         with torch.no_grad():
-            outputs = model.generate(inputs['input_ids'], max_length=max_length)
-        for i, text in enumerate(batch):
-            decode_tokens = tokenizer.decode(outputs[i], skip_special_tokens=True).replace(' ', '')
-            logger.debug(f'pred: {decode_tokens}')
-            result.append(decode_tokens)
+            # outputs = model.generate(inputs['input_ids'], max_length=max_length)
+            pred = model.generate(
+                eos_token_id=tokenizer.sep_token_id,
+                decoder_start_token_id=tokenizer.cls_token_id,
+                num_beams=3,
+                input_ids=inputs['input_ids'],
+                attention_mask=inputs['attention_mask'],
+                max_length=max_length,
+                src=inputs['input_ids']
+            )
+            pred = tokenizer.batch_decode(pred, skip_special_tokens=True)
+            pred = [s.replace(' ', '') for s in pred]
+            result.extend(pred)
     return result
 
 
@@ -288,7 +281,7 @@ if __name__ == '__main__':
     parser.add_argument('--predict_file', type=str, required=False)
     parser.add_argument('--noise_prob', default=0., type=float)
     parser.add_argument('--max_source_length', default=200, type=int)
-    parser.add_argument('--max_target_length', default=150, type=int)
+    parser.add_argument('--max_target_length', default=200, type=int)
     parser.add_argument('--beams', default=3, type=int)
     parser.add_argument('--num_works', type=int, default=4)
 
@@ -304,4 +297,5 @@ if __name__ == '__main__':
         m.train_model()
     if args.do_predict:
         sents = ['类型#上衣*版型#h*材质#蚕丝*风格#复古*图案#条纹*图案#复古*图案#撞色*衣样式#衬衫*衣领型#小立领']
-        predict(sents, args.output_dir)
+        r = predict(sents, args.output_dir)
+        print(r)

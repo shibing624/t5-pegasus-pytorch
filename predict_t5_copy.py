@@ -10,6 +10,10 @@ import pytorch_lightning as pl
 from utils import T5PegasusTokenizer, EncoderDecoderData
 from t5_copy import T5Copy
 from loguru import logger
+import torch
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 class TaskLightModel(pl.LightningModule):
@@ -19,7 +23,9 @@ class TaskLightModel(pl.LightningModule):
         logger.info(args)
         self.model = T5Copy.from_pretrained(args.model_path)
         self.model.resize_token_embeddings(len(tokenizer))
+        self.model.to(device)
         logger.info('model loaded.')
+
 
     def predict_batch(self, batch):
         ids = batch.pop('id')
@@ -61,7 +67,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=12, type=int)
     parser.add_argument('--precision', default=32, type=int)
     parser.add_argument('--plugins', type=str, default='ddp_sharded')
-    parser.add_argument('--gpus', type=int, default=0)
+    parser.add_argument('--gpus', type=int, default=1)
     parser.add_argument('--kfold', type=int, default=1)
     parser.add_argument('--compute_bleu', action='store_true')
     parser.add_argument('--compute_rouge', action='store_true')
@@ -69,18 +75,18 @@ if __name__ == '__main__':
     # ========================= Data ==========================
     parser.add_argument('--train_file', type=str, required=False)
     parser.add_argument('--dev_file', type=str, required=False)
-    parser.add_argument('--predict_file', type=str, required=False)
+    parser.add_argument('--predict_file', type=str, required=False, default='data/ads/sample_total_match1k.json')
     parser.add_argument('--noise_prob', default=0., type=float)
     parser.add_argument('--max_source_length', default=200, type=int)
-    parser.add_argument('--max_target_length', default=150, type=int)
+    parser.add_argument('--max_target_length', default=200, type=int)
     parser.add_argument('--beams', default=3, type=int)
-    parser.add_argument('--num_works', type=int, default=4)
+    parser.add_argument('--num_works', type=int, default=1)
 
     # ========================= Model ==========================
-    parser.add_argument('--model_path', type=str)
+    parser.add_argument('--model_path', type=str, default='saved/copyt5_ads/')
     parser.add_argument('--save_path', type=str, default='./saved')
-    parser.add_argument('--resume', type=str)
-    parser.add_argument('--output_path', type=str)
+    parser.add_argument('--resume', type=str, default='saved/t5_copy-noise=0.0-0-epoch=18-bleu=0.1989-rouge-1=0.4141-rouge-2=0.2494-rouge-l=0.3330.ckpt')
+    parser.add_argument('--output_path', type=str, default='predictions.txt')
 
     args = parser.parse_args()
     print(f'args: {args}')

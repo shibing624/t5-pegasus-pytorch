@@ -34,7 +34,7 @@ class EncoderDecoderData:
 
     def get_predict_dataloader(self):
         predict_dataset = KeyDataset(self.predict_data)
-        predict_dataloader = DataLoader(predict_dataset, batch_size=self.args.batch_size * 2,
+        predict_dataloader = DataLoader(predict_dataset, batch_size=self.args.batch_size,
                                         collate_fn=self.predict_collate)
         return predict_dataloader
 
@@ -52,7 +52,7 @@ class EncoderDecoderData:
         res = self.tokenizer(source,
                              padding=True,
                              return_tensors='pt',
-                             max_length=500,
+                             max_length=self.args.max_source_length,
                              truncation=True,
                              return_attention_mask=True,
                              return_token_type_ids=False).to(device)
@@ -60,7 +60,7 @@ class EncoderDecoderData:
         target_features = self.tokenizer(target,
                                          padding=True,
                                          return_tensors='pt',
-                                         max_length=150,
+                                         max_length=self.args.max_source_length,
                                          truncation=True,
                                          return_attention_mask=True,
                                          return_token_type_ids=False).to(device)
@@ -137,7 +137,7 @@ class EncoderDecoderData:
                                           collate_fn=self.train_collate,
                                           shuffle=True)
             dev_dataloader = DataLoader(dev_dataset,
-                                        batch_size=self.args.batch_size * 2,
+                                        batch_size=self.args.batch_size,
                                         collate_fn=self.dev_collate)
             ret['train'].append(train_dataloader)
             ret['dev'].append(dev_dataloader)

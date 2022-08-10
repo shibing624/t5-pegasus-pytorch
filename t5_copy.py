@@ -36,8 +36,7 @@ class T5Copy(T5ForConditionalGeneration):
             # retrieve encoder hidden states
             encoder = self.get_encoder()
             encoder_kwargs = {
-                argument: value
-                for argument, value in model_kwargs.items()
+                argument: value for argument, value in model_kwargs.items()
                 if not (argument.startswith("decoder_") or argument.startswith("cross_attn"))
             }
             new_kwargs = copy.deepcopy(encoder_kwargs)
