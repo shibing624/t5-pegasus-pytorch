@@ -31,7 +31,7 @@ class T5Copy(T5ForConditionalGeneration):
         super().__init__(config)
         self.generator = CopyGenerator(config)
 
-    def _prepare_encoder_decoder_kwargs_for_generation(self, input_ids, model_kwargs):
+    def _prepare_encoder_decoder_kwargs_for_generation(self, input_ids, model_kwargs, model_input_name=None):
         if "encoder_outputs" not in model_kwargs:
             # retrieve encoder hidden states
             encoder = self.get_encoder()

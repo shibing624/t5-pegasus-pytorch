@@ -170,10 +170,10 @@ class CopyT5Model():
                 # logger.debug(f'batch: {batch}, {batch["input_ids"].shape}')
                 logits = self.model(**batch).logits
                 loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
+                optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
-                optimizer.zero_grad()
                 training_details.append(loss.item())
                 batch_iterator.set_description(
                     f"Epochs {epoch}/{self.args.max_epochs}. Training Loss: {loss.item():.4f}"
@@ -262,11 +262,9 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', default=0.01, type=float)
     parser.add_argument('--lr', default=1e-4, type=float, help='initial learning rate')
     parser.add_argument('--batch_size', default=16, type=int)
-    parser.add_argument('--eval_start', default=3, type=int)
     parser.add_argument('--max_epochs', default=10, type=int)
     parser.add_argument('--accumulate_grad_batches', default=1, type=int)
     parser.add_argument('--seed', default=12, type=int)
-    parser.add_argument('--precision', default=32, type=int)
     parser.add_argument('--plugins', type=str, default='ddp_sharded')
     parser.add_argument('--gpus', type=int, default=0)
     parser.add_argument('--kfold', type=int, default=1)

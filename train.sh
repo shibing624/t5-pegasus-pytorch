@@ -12,18 +12,16 @@
 #--lr 5e-5
 
 
-# imxly/t5-copy \
-
-python train_t5_copy_torch.py --train_file data/ads/train.json \
---predict_file data/ads/dev.json \
---batch_size 8 \
---max_epochs 10 \
+python train_t5_copy_torch.py --train_file data/dev.json \
+--predict_file data/sample_data.json \
+--batch_size 32 \
+--max_epochs 50 \
 --max_source_length 200 \
 --max_target_length 200 \
---model_path outputs/pytorch-checkpointsv1/ \
+--model_path outputs/pytorch-checkpoints-ecommerv1/ \
 --compute_bleu --compute_rouge \
 --gpus 1 \
---lr 5e-5 \
+--lr 1e-4 \
 --num_works 1 \
---output_dir outputs/pytorch-checkpoints/ \
+--output_dir imxly/t5-copy \
 --do_train --do_predict
