@@ -2,7 +2,8 @@
 ## 最新更新
 - 增加t5-copy模型，在t5-pegasus的基础上增加了pointer generator，用t5-pegasus的预训练任务继续训练
 - 增加t5-copy-large模型，在t5-copy的基础上用公开的文本摘要数据集进行训练
-- 增加examples，基于pytorch_lightning的多卡训练
+- 使用原生pytorch训练t5-copy模型
+
 ## 结果对比
 数据集：[AdvertiseGen](https://www.luge.ai/#/luge/dataDetail?id=9)
 
@@ -12,8 +13,6 @@
 | t5-copy  |  0.089      |  0.4257 | 0.1814  | 0.2626  |
 
 
-**使用t5-copy模型transformers的版本不能高于4.12.0**
-pytorch-lightning<=1.4.9
 ## 下载模型
 ### huggingface model hub
 
