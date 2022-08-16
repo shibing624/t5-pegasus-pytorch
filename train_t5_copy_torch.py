@@ -158,6 +158,7 @@ class CopyT5Model():
         logger.debug(f'train_dataset: {type(train_dataset)}, {len(train_dataset)}')
         optimizer, scheduler = self.configure_optimizers()
         training_details = []
+        min_loss = 1000
         for epoch in tqdm(range(0, self.args.max_epochs)):
             self.current_epoch = epoch
             self.model.train()
@@ -216,7 +217,9 @@ class CopyT5Model():
             # Save model checkpoint
             output_dir = self.args.output_dir if output_dir is None else output_dir
             os.makedirs(self.args.output_dir, exist_ok=True)
-            self.save_model(output_dir, self.model)
+            if test_loss < min_loss:
+                self.save_model(output_dir, self.model)
+                min_loss = test_loss
             # Predict model
             if data.predict_data:
                 pred_batch = data.predict_data[-3:] 
@@ -286,7 +289,7 @@ if __name__ == '__main__':
     # ========================= Model ==========================
     parser.add_argument('--model_path', type=str, default='imxly/t5-copy')
     parser.add_argument('--rouge_mode', type=str, default='all')
-    parser.add_argument('--output_dir', type=str, default='./outputs/pytorch-checkpoints/')
+    parser.add_argument('--output_dir', type=str, default='saved/pytorch-checkpoints/')
 
     args = parser.parse_args()
     print(args)
@@ -294,6 +297,7 @@ if __name__ == '__main__':
     if args.do_train:
         m.train_model()
     if args.do_predict:
-        sents = ['类型#上衣*版型#h*材质#蚕丝*风格#复古*图案#条纹*图案#复古*图案#撞色*衣样式#衬衫*衣领型#小立领']
+        sents = ['类型#裤*版型#宽松*风格#性感*图案#线条*裤型#阔腿裤']
         r = predict(sents, args.output_dir)
-        print(r)
+        print('input:', sents)
+        print('output:', r)
