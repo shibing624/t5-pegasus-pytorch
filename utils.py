@@ -8,6 +8,7 @@ import numpy as np
 from torch.utils.data import DataLoader, Dataset, Subset
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 import rouge
+from sklearn.model_selection import train_test_split
 import re
 import sys
 from transformers import AdamW
@@ -49,6 +50,7 @@ class EncoderDecoderData:
     def train_collate(self, batch):
         source = [x[SRC_TOKEN] for x in batch]
         target = [x[TGT_TOKEN] for x in batch]
+        # print('source:', source)
         res = self.tokenizer(source,
                              padding=True,
                              return_tensors='pt',
@@ -104,43 +106,25 @@ class EncoderDecoderData:
     def get_dataloader(self):
         ret = {'train': [], 'dev': []}
         base_dataset = KeyDataset(self.train_data)
-        if self.args.kfold > 1:
-            from sklearn.model_selection import KFold
-            for train_idx, dev_idx in KFold(n_splits=self.args.kfold, shuffle=True,
-                                            random_state=self.args.seed).split(range(len(self.train_data))):
-                train_dataset = Subset(base_dataset, train_idx)
-                dev_dataset = Subset(base_dataset, dev_idx)
-                train_dataloader = DataLoader(train_dataset,
-                                              batch_size=self.args.batch_size,
-                                              collate_fn=self.train_collate,
-                                              shuffle=True)
-                dev_dataloader = DataLoader(dev_dataset,
-                                            batch_size=self.args.batch_size,
-                                            collate_fn=self.dev_collate)
-                ret['train'].append(train_dataloader)
-                ret['dev'].append(dev_dataloader)
+        if self.dev_data is not None:
+            train_dataset = base_dataset
+            dev_dataset = KeyDataset(self.dev_data)
         else:
-            if self.args.kfold == 1:
-                from sklearn.model_selection import train_test_split
-                train_idx, dev_idx = train_test_split(range(len(self.train_data)),
+            train_idx, dev_idx = train_test_split(range(len(self.train_data)),
                                                       test_size=0.1,
                                                       random_state=self.args.seed)
-                train_dataset = Subset(base_dataset, train_idx)
-                dev_dataset = Subset(base_dataset, dev_idx)
-            else:
-                assert self.dev_data is not None, 'When no kfold, dev data must be targeted'
-                train_dataset = base_dataset
-                dev_dataset = KeyDataset(self.dev_data)
+            train_dataset = Subset(base_dataset, train_idx)
+            dev_dataset = Subset(base_dataset, dev_idx)
 
-            train_dataloader = DataLoader(train_dataset,
-                                          batch_size=self.args.batch_size,
-                                          collate_fn=self.train_collate,
-                                          shuffle=True)
-            dev_dataloader = DataLoader(dev_dataset,
+        train_dataloader = DataLoader(train_dataset,
                                         batch_size=self.args.batch_size,
-                                        collate_fn=self.dev_collate)
-            ret['train'].append(train_dataloader)
-            ret['dev'].append(dev_dataloader)
+                                        collate_fn=self.train_collate,
+                                        shuffle=True)
+        dev_dataloader = DataLoader(dev_dataset,
+                                    batch_size=self.args.batch_size,
+                                    collate_fn=self.dev_collate)
+        ret['train'].append(train_dataloader)
+        ret['dev'].append(dev_dataloader)
         return ret
 
 

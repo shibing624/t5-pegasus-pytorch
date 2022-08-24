@@ -18,6 +18,8 @@ from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+new_tokens = ['，', '（', '）', '_', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 
+    'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 
 
 def create_optimizer(model, lr, weight_decay, custom_lr=None):
@@ -56,9 +58,9 @@ class CopyT5Model():
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path)
+        self.tokenizer = T5PegasusTokenizer.from_pretrained(args.model_path, do_lower_case=False)
         # add custom word
-        self.tokenizer.add_tokens(['，', '（', '）', '_'])
+        self.tokenizer.add_tokens(new_tokens)
         self.model = T5Copy.from_pretrained(args.model_path)
         self.model.resize_token_embeddings(len(self.tokenizer))
         self.model.to(device)
@@ -170,6 +172,7 @@ class CopyT5Model():
             for batch_idx, batch in enumerate(batch_iterator):
                 # logger.debug(f'batch: {batch}, {batch["input_ids"].shape}')
                 logits = self.model(**batch).logits
+                logger.info(f"batch labels: {batch['labels']}, {batch['decoder_attention_mask']}")
                 loss = copy_loss(logits, batch['labels'], batch['decoder_attention_mask'])
                 optimizer.zero_grad()
                 loss.backward()
@@ -217,18 +220,21 @@ class CopyT5Model():
             # Save model checkpoint
             output_dir = self.args.output_dir if output_dir is None else output_dir
             os.makedirs(self.args.output_dir, exist_ok=True)
+            epoch_output_dir = os.path.join(output_dir, f'epoch_{epoch}')
+            os.makedirs(epoch_output_dir, exist_ok=True)
+            self.save_model(epoch_output_dir, self.model)
             if test_loss < min_loss:
                 self.save_model(output_dir, self.model)
                 min_loss = test_loss
             # Predict model
-            if data.predict_data:
-                pred_batch = data.predict_data[-3:] 
-                pred_source = [x[SRC_TOKEN] for x in pred_batch]
-                pred_target = [x[TGT_TOKEN] for x in pred_batch]
-                pred = predict(pred_source, output_dir)
-                logger.debug('\n\npredict:')
-                logger.debug(f'y_pred: {pred}')
-                logger.debug(f'y_truth:{pred_target}')
+            # if data.predict_data:
+            #     pred_batch = data.predict_data[-3:] 
+            #     pred_source = [x[SRC_TOKEN] for x in pred_batch]
+            #     pred_target = [x[TGT_TOKEN] for x in pred_batch]
+            #     pred = predict(pred_source, output_dir)
+            #     logger.debug('\n\npredict:')
+            #     logger.debug(f'y_pred: {pred}')
+            #     logger.debug(f'y_truth:{pred_target}')
         return training_details
 
 def predict(texts, model_dir, batch_size=32, max_length=128, silent=True):
